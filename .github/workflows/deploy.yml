@@ -1,0 +1,57 @@
+name: Deploy Docker App
+
+# Ejecuta el pipeline cada vez que haya un push a main
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  deploy:
+
+    # Máquina temporal de GitHub donde corre el proceso
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # Descarga el código del repositorio
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Se conecta a Kali por SSH y ejecuta el despliegue
+      - name: Deploy to Kali
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+
+          # IP de Kali tomada desde Secrets
+          host: ${{ secrets.SSH_HOST }}
+
+          # Usuario de Kali
+          username: ${{ secrets.SSH_USER }}
+
+          # Llave privada SSH
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+          script: |
+
+            # Entra a la carpeta del proyecto
+            cd ~/new-docker
+
+            # Descarga los últimos cambios de GitHub
+            git pull
+
+            # Construye una nueva imagen Docker
+            docker build -t new-docker-app .
+
+            # Detiene el contenedor anterior si existe
+            docker stop new-docker-container || true
+
+            # Elimina el contenedor anterior
+            docker rm new-docker-container || true
+
+            # Ejecuta la nueva versión
+            docker run -d \
+              --name new-docker-container \
+              -p 5000:5000 \
+              new-docker-app
